@@ -1,0 +1,101 @@
+#!/bin/bash
+{
+
+set +H -uo pipefail
+
+function necho() {
+printf -- '%s' "${@}"
+}
+
+function show_help() {
+echo "Usage: ${0##*"/"} [EXE]
+Modify Little Nightmares 2 to work on Windows 7.
+
+  -h, --help
+        display this help and exit"
+}
+
+function is_not_done() {
+local "LC_ALL" "LANG"
+LC_ALL=C
+LANG=C
+if grep -obUaP -- "${edit}" "${1}" &>/dev/null; then
+	return 1
+else
+	return 0
+fi
+}
+
+function is_patchable() {
+local "LC_ALL" "LANG"
+LC_ALL=C
+LANG=C
+if grep -obUaP -- "${orig}" "${1}" &>/dev/null; then
+	return 0
+else
+	return 1
+fi
+}
+
+function echo_error() {
+echo "${1}: FAILED"
+code=1
+}
+
+case "${#},${1:-""},${2:-""}" in
+	0,,|"1,-,"|"1,--,"|"1,/dev/stdin,"|"1,--,"|"2,--,-"|"2,--,/dev/stdin")
+		exit 0
+	;;
+	"1,-h,"|"1,--h,"|"1,--help,")
+		show_help
+		exit 0
+	;;
+	"1,--version,")
+		echo "${0##*"/"} 1.0.0"
+		exit 0
+	;;
+	2,--,*?.[eE][xX][eE])
+		shitf 1
+	;;
+	1,*?.[eE][xX][eE],)
+		:
+	;;
+	*)
+		show_help 1>&2
+		exit 1
+	;;
+esac
+orig='\x00\x84\xc0\x75\x24\x4c\x8d\x05'
+edit="${orig/'75'/'eb'}"
+case "${1##*"/"}" in
+	"Little_Nightmares_II_Enhanced-Win64-Shipping.exe"|"Little Nightmares II.exe")
+		if type grep sed &>/dev/null; then
+			if is_not_done "${1}"; then
+				if is_patchable "${1}"; then
+					if sed -i "s/${orig}/${edit}/" "${1}"; then
+						echo "${0##*"/"}: ${1}: OK"
+					else
+						echo "${0##*"/"}: ${1}: FAILED"
+						code=1
+					fi
+				else
+					echo "${0##*"/"}: ${1}: Is not patchable"
+				fi
+			else
+				echo "${0##*"/"}: ${1}: Is already patched"
+			fi
+		else
+			echo "${0##*"/"}: please install: coreutils sed"
+			code=1
+		fi
+	;;
+	*?.[eE][xX][eE])
+		echo "${0##*"/"}: ${1}: Is not Little Nigthmares 2"
+		code=1
+	;;
+	*)
+		:
+	;;
+esac
+exit "${code:-"0"}"
+}
